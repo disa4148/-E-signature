@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Подписание данных</title>
+    <script src="cadesplugin_api.js"></script>
+    <script>
+        let certificate;
+
+        // Поиск сертификата по CN
+        async function findCertificate(certSubjectName) {
+            const oStore = await cadesplugin.CreateObjectAsync("CAdESCOM.Store");
+            await oStore.Open(cadesplugin.CAPICOM_CURRENT_USER_STORE, cadesplugin.CAPICOM_MY_STORE, cadesplugin.CAPICOM_STORE_OPEN_MAXIMUM_ALLOWED);
+
+            const certificates = await oStore.Certificates;
+            const foundCertificates = await certificates.Find(
+                cadesplugin.CAPICOM_CERTIFICATE_FIND_SUBJECT_NAME,
+                certSubjectName
+            );
+
+            const certCount = await foundCertificates.Count;
+            if (certCount > 0) {
+                certificate = await foundCertificates.Item(1);
+                console.log("Certificate found:", certificate);
+                alert("Сертификат найден!");
+            } else {
+                alert(`Сертификат с CN "${certSubjectName}" не найден.`);
+            }
+            await oStore.Close();
+        }
+
+        // Создание подписи
+        async function createSignature() {
+            if (!certificate) {
+                alert("Сначала найдите сертификат!");
+                return;
+            }
+            const dataToSign = document.getElementById("dataToSign").value;
+            try {
+                const oSigner = await cadesplugin.CreateObjectAsync("CAdESCOM.CPSigner");
+                await oSigner.propset_Certificate(certificate);
+
+                const oSignedData = await cadesplugin.CreateObjectAsync("CAdESCOM.CadesSignedData");
+                await oSignedData.propset_Content(dataToSign);
+
+                const signature = await oSignedData.SignCades(oSigner, cadesplugin.CADESCOM_CADES_BES);
+                console.log("Signature created:", signature);
+
+                // Устанавливаем значение подписи в текстовое поле
+                document.getElementById("signature").value = signature;
+
+                downloadFile("signature.txt", signature);
+            } catch (error) {
+                console.error("Failed to create signature:", cadesplugin.getLastError(error));
+            }
+        }
+
+        // Скачивание файла
+        function downloadFile(filename, content) {
+            const element = document.createElement("a");
+            const file = new Blob([content], { type: "text/plain" });
+            element.href = URL.createObjectURL(file);
+            element.download = filename;
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+    </script>
+</head>
+<body>
+    <h1>Электронная подпись</h1>
+    <label for="CertName">Имя сертификата (CN):</label><br/><br/>
+    <input type="text" id="CertName" placeholder="Введите CN сертификата"><br/><br/>
+    <button onclick="findCertificate(document.getElementById('CertName').value)">Найти сертификат</button>
+    <br><br>
+
+    <label for="dataToSign">Данные для подписи:</label><br/><br/>
+    <textarea id="dataToSign" rows="4" cols="50" placeholder="Введите текст для подписи"></textarea>
+    <br><br>
+
+    <button onclick="createSignature()">Создать подпись</button>
+    <br><br>
+
+    <label for="signature">Подпись:</label><br/><br/>
+    <textarea id="signature" rows="50" cols="50" placeholder="Подпись будет здесь"></textarea>
+</body>
+</html>
