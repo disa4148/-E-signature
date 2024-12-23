@@ -139,6 +139,8 @@ http-server .
 
 ---
 
+## Лицензия
 
+Этот репозиторий лицензирован под MIT License. Подробности см. в файле [LICENSE](https://github.com/disa4148/crypto-signature-app/blob/main/LICENSE).
 
 
